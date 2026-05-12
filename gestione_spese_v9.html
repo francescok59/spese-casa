@@ -211,6 +211,20 @@ th.acc-h{background:#0a5442}th.pag-h{background:#8f3a17}
 </head>
 <body>
 
+<!-- MODAL PASSWORD - fuori da app-content, sempre visibile -->
+<div class="backdrop open" id="modal-password" style="z-index:9999;background:rgba(28,25,23,.92)">
+<div class="modal modal-center" style="max-width:340px;text-align:center">
+  <div style="font-size:2.5rem;margin-bottom:8px">🏠</div>
+  <div class="modal-title" style="text-align:center">Spese di Casa</div>
+  <div style="font-size:13px;color:var(--ink3);margin-bottom:20px">Inserisci la password per accedere</div>
+  <input type="password" id="pwd-input" placeholder="Password"
+    style="width:100%;padding:12px;font-size:16px;border:2px solid var(--border);border-radius:12px;text-align:center;font-family:Outfit,sans-serif;margin-bottom:12px;box-sizing:border-box"
+    onkeydown="if(event.key==='Enter') checkPassword()">
+  <div id="pwd-error" style="color:var(--rust);font-size:12px;margin-bottom:8px;display:none">Password errata. Riprova.</div>
+  <button class="btn btn-p btn-full" onclick="checkPassword()">Accedi</button>
+</div>
+</div>
+
 <!-- Contenuto app — nascosto finché password non inserita -->
 <div id="app-content" style="display:none">
 
@@ -508,20 +522,6 @@ th.acc-h{background:#0a5442}th.pag-h{background:#8f3a17}
     <button class="btn btn-s" onclick="stampaMov()" style="padding:0 14px;font-size:12px">🖨️ PDF</button>
   </div>
   <button class="btn btn-s btn-full" style="margin-top:8px" onclick="closeModal('modal-mov')">Annulla</button>
-</div>
-</div>
-
-<!-- MODAL PASSWORD -->
-<div class="backdrop open" id="modal-password" style="z-index:9999;background:rgba(28,25,23,.85)">
-<div class="modal modal-center" style="max-width:340px;text-align:center">
-  <div style="font-size:2rem;margin-bottom:8px">🏠</div>
-  <div class="modal-title" style="text-align:center">Spese di Casa</div>
-  <div style="font-size:13px;color:var(--ink3);margin-bottom:20px">Inserisci la password per accedere</div>
-  <input type="password" id="pwd-input" placeholder="Password" 
-    style="width:100%;padding:12px;font-size:16px;border:2px solid var(--border);border-radius:12px;text-align:center;font-family:Outfit,sans-serif;margin-bottom:12px;box-sizing:border-box"
-    onkeydown="if(event.key==='Enter') checkPassword()">
-  <div id="pwd-error" style="color:var(--rust);font-size:12px;margin-bottom:8px;display:none">Password errata. Riprova.</div>
-  <button class="btn btn-p btn-full" onclick="checkPassword()">Accedi</button>
 </div>
 </div>
 
