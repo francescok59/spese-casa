@@ -211,6 +211,9 @@ th.acc-h{background:#0a5442}th.pag-h{background:#8f3a17}
 </head>
 <body>
 
+<!-- Contenuto app — nascosto finché password non inserita -->
+<div id="app-content" style="display:none">
+
 <header>
   <div class="h-left">
     <div class="h-title">Spese di <span>Casa</span></div>
@@ -4040,6 +4043,8 @@ function checkPassword(){
     _appUnlocked=true;
     document.getElementById('modal-password').style.display='none';
     document.getElementById('pwd-input').value='';
+    // Mostra il contenuto dell'app
+    document.getElementById('app-content').style.display='block';
     init();
   } else {
     document.getElementById('pwd-error').style.display='block';
@@ -4215,5 +4220,7 @@ function init(){
 }
 
 </script>
+</div><!-- fine app-content -->
+
 </body>
 </html>
