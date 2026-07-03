@@ -726,7 +726,7 @@ th.acc-h{background:#0a5442}th.pag-h{background:#8f3a17}
 // ===================================================
 // Data di generazione di questa versione del file: aggiornare qui ad ogni nuova build.
 // Il numero di versione (es. v9) viene letto automaticamente dal nome del file caricato.
-var BUILD_DATE = '2026-07-03b';
+var BUILD_DATE = '2026-07-03c';
 
 (function(){
   var tag = document.getElementById('build-tag');
@@ -4347,6 +4347,24 @@ function gsClear(sheet){
   });
 }
 
+// Crea automaticamente, se mancano, le schede (tab) necessarie nel foglio Google Sheets.
+// Cosi' non serve piu' crearle a mano: basta collegare un foglio Google vuoto.
+function gsEnsureSheets(names){
+  if(!window.gsAccessToken||!window.gsGapiReady) return Promise.resolve();
+  return gapi.client.sheets.spreadsheets.get({spreadsheetId:GS_SHEET_ID, fields:'sheets.properties.title'})
+  .then(function(resp){
+    var existing = (resp.result.sheets||[]).map(function(s){return s.properties.title;});
+    var missing = names.filter(function(n){ return existing.indexOf(n)<0; });
+    if(!missing.length) return;
+    return gapi.client.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: GS_SHEET_ID,
+      resource: { requests: missing.map(function(n){ return {addSheet:{properties:{title:n}}}; }) }
+    });
+  });
+}
+
+var GS_SHEETS_ATTESE = ['config','voci','movimenti','batch','delta','verifiche'];
+
 // ── Sync completo verso Sheets ────────────────────────
 function gsSyncAll(){
   if(!window.gsAccessToken||!window.gsGapiReady){ showToast('Connetti Google Sheets prima'); return; }
@@ -4367,7 +4385,10 @@ function gsSyncAll(){
   var vfRows=[['id','data','saldo','note']];
   (yd.verifiche||[]).forEach(function(vf){vfRows.push([vf.id,vf.data||'',n2s(vf.saldo),vf.note||'']);});
 
-  Promise.all([gsClear('config'),gsClear('voci'),gsClear('movimenti'),gsClear('batch'),gsClear('delta'),gsClear('verifiche')])
+  gsEnsureSheets(GS_SHEETS_ATTESE)
+  .then(function(){
+    return Promise.all([gsClear('config'),gsClear('voci'),gsClear('movimenti'),gsClear('batch'),gsClear('delta'),gsClear('verifiche')]);
+  })
   .then(function(){
     return Promise.all([
       gsWrite('config!A1',cfgRows), gsWrite('voci!A1',vRows),
@@ -4380,9 +4401,11 @@ function gsSyncAll(){
 // ── Carica da Sheets ──────────────────────────────────
 function gsLoadAll(){
   if(!window.gsAccessToken||!window.gsGapiReady){ showToast('Connetti Google Sheets prima'); return; }
-  gapi.client.sheets.spreadsheets.values.batchGet({
+  gsEnsureSheets(GS_SHEETS_ATTESE).then(function(){
+  return gapi.client.sheets.spreadsheets.values.batchGet({
     spreadsheetId: GS_SHEET_ID,
     ranges:['config!A:B','voci!A:S','movimenti!A:H','batch!A:H','delta!A:E','verifiche!A:D']
+  });
   }).then(function(resp){
     var ranges=resp.result.valueRanges;
     var cfg=ranges[0].values||[],voci=ranges[1].values||[],mov=ranges[2].values||[],batch=ranges[3].values||[],delta=ranges[4].values||[],verifiche=ranges[5].values||[];
