@@ -547,6 +547,7 @@ th.acc-h{background:#0a5442}th.pag-h{background:#8f3a17}
     <div class="dp-wrap"><input class="dp-input" id="m-note" readonly placeholder="Seleziona data bonifico" onclick="dpOpen('m-note')"></div>
     <div style="font-size:11px;color:var(--ink3);margin-top:4px">Data reale del pagamento</div>
   </div>
+  <div class="fg"><label>Nota (opzionale)</label><input type="text" id="m-nota" placeholder="es. Bonifico dal conto cointestato"></div>
   <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:0">
     <button class="btn btn-p btn-full" onclick="salvaMov()">Salva movimento</button>
     <button class="btn btn-s" onclick="stampaMov()" style="padding:0 14px;font-size:12px">🖨️ PDF</button>
@@ -585,6 +586,7 @@ th.acc-h{background:#0a5442}th.pag-h{background:#8f3a17}
     <div class="dp-wrap"><input class="dp-input" id="ci-note" readonly placeholder="Seleziona data bonifico" onclick="dpOpen('ci-note')"></div>
     <div style="font-size:11px;color:var(--ink3);margin-top:4px">Data reale del pagamento</div>
   </div>
+  <div class="fg"><label>Nota (opzionale)</label><input type="text" id="ci-nota" placeholder="es. Bonifico dal conto cointestato"></div>
   <div style="display:grid;grid-template-columns:1fr auto;gap:8px">
     <button class="btn btn-b btn-full" id="ci-btn-salva" onclick="salvaCumul()">Salva versamento cumulativo</button>
     <button class="btn btn-s" onclick="stampaCumul()" style="padding:0 14px;font-size:12px">🖨️ PDF</button>
@@ -726,7 +728,7 @@ th.acc-h{background:#0a5442}th.pag-h{background:#8f3a17}
 // ===================================================
 // Data di generazione di questa versione del file: aggiornare qui ad ogni nuova build.
 // Il numero di versione (es. v9) viene letto automaticamente dal nome del file caricato.
-var BUILD_DATE = '2026-07-03c';
+var BUILD_DATE = '2026-07-04';
 
 (function(){
   var tag = document.getElementById('build-tag');
@@ -1169,6 +1171,10 @@ function annullaEliminaInt() {
 // NAVIGATION
 // ===================================================
 function showPage(name) {
+  if(name==='movimenti' && !window.gsAccessToken){
+    showToast('Connetti prima Google Sheets per accedere ai Movimenti');
+    return;
+  }
   var pages = ['dashboard','voci','movimenti','conto','prospetto','versamenti'];
   var tabs = document.querySelectorAll('.tab');
   for (var i=0; i<pages.length; i++) {
@@ -2130,6 +2136,7 @@ function aggiornaVociMov(){
 }
 
 function openMovModal(voceId){
+  if(!window.gsAccessToken){ showToast('Connetti prima Google Sheets per registrare movimenti'); return; }
   var yd=getYearData(currentYear());
   dpSetToday('m-data');
   aggiornaVociMov();
@@ -2140,6 +2147,7 @@ function openMovModal(voceId){
   document.getElementById('m-importo').value='';
   var mnote=document.getElementById('m-note');
   mnote.value=''; mnote.removeAttribute('data-iso');
+  document.getElementById('m-nota').value='';
   setTipo('accantonamento'); openModal('modal-mov');
 }
 function salvaMov(){
@@ -2173,7 +2181,8 @@ function salvaMov(){
     tipoEff='pagamento';
     importoEff=_cV.saldo;
   }
-  var newMov={id:uid(),voceId:voceId,tipo:tipoEff,importo:importoEff,data:data,note:nota};
+  var notaLibera=document.getElementById('m-nota').value.trim();
+  var newMov={id:uid(),voceId:voceId,tipo:tipoEff,importo:importoEff,data:data,note:nota,nota:notaLibera};
   yd.movimenti.push(newMov);
 
   saveYearData(y,yd);
@@ -2219,6 +2228,7 @@ function setCumulInt(nome){
 var cumulMode = 'intestatario'; // 'intestatario' | 'globale'
 
 function openCumulModal(mode){
+  if(!window.gsAccessToken){ showToast('Connetti prima Google Sheets per registrare movimenti'); return; }
   var list=getIntestatari();
   if (!list.length){showToast('Aggiungi prima un intestatario');return;}
   cumulMode = mode || 'intestatario';
@@ -2241,6 +2251,7 @@ function openCumulModal(mode){
   document.getElementById('ci-importo').value='';
   var cinote=document.getElementById('ci-note');
   cinote.value=''; cinote.removeAttribute('data-iso');
+  document.getElementById('ci-nota').value='';
   document.getElementById('ci-piano-wrap').style.display='none';
   buildCumulIntToggle();
   buildPiano();
@@ -2568,6 +2579,7 @@ function salvaCumul(){
   var data=dpGetISO('ci-data');
   var importo=parseNum(document.getElementById('ci-importo').value);
   var note=document.getElementById('ci-note').value.trim();
+  var notaLibera=document.getElementById('ci-nota').value.trim();
   if(!data){showToast('Seleziona il mese di competenza');return;}
   if(!note){showToast('Inserisci la data del bonifico nelle note');return;}
   if(!cumulPiano.length){showToast('Nessuna voce da coprire');return;}
@@ -2623,7 +2635,7 @@ function salvaCumul(){
     var p=pianoEffettivo[i];
     if(p.importo>0){
       var notaMov=importo===0&&_eccesso>0?notaBase+' (da eccesso precedente)':notaBase;
-      yd.movimenti.push({id:uid(),voceId:p.voce.id,tipo:'accantonamento',importo:p.importo,data:data,note:notaMov,cumulativo:true,batchId:batchId});
+      yd.movimenti.push({id:uid(),voceId:p.voce.id,tipo:'accantonamento',importo:p.importo,data:data,note:notaMov,nota:notaLibera,cumulativo:true,batchId:batchId});
       n++;
     }
   }
@@ -2634,7 +2646,7 @@ function salvaCumul(){
   yd.batchVersamenti.push({
     id:batchId, data:data,
     importo:importo===0&&_eccesso>0?0:importo, // versato reale
-    note:notaBase + (_sospeseNote.length?(' [Sospese: '+_sospeseNote.join(', ')+']'):''), distribuito:totDist, diff:diff,
+    note:notaBase + (_sospeseNote.length?(' [Sospese: '+_sospeseNote.join(', ')+']'):''), nota:notaLibera, distribuito:totDist, diff:diff,
     daEccesso:importo===0&&_eccesso>0, // flag: coperto da eccesso
     voci:pianoEffettivo.filter(function(p){return p.importo>0;}).map(function(p){
       return {voceId:p.voce.id, descrizione:p.voce.descrizione, importo:p.importo};
@@ -3059,7 +3071,9 @@ function _doPDF(y,voci,movimenti){
           doc.setFillColor(mbg[0],mbg[1],mbg[2]);doc.rect(ML+5,cy,CW-5,6,'F');
           doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(INK2[0],INK2[1],INK2[2]);
           doc.text((isAcc?'+ Acc. ':'- Pag. ')+new Date(m.data).toLocaleDateString('it-IT'),ML+8,cy+4);
-          if(m.note){doc.setTextColor(INK3[0],INK3[1],INK3[2]);doc.text(m.note.length>38?m.note.slice(0,37)+'...':m.note,ML+46,cy+4);}
+          var _testoNota = m.note||'';
+          if(m.nota) _testoNota = (_testoNota? _testoNota+' \u2014 ':'') + 'Nota: '+m.nota;
+          if(_testoNota){doc.setTextColor(INK3[0],INK3[1],INK3[2]);doc.text(_testoNota.length>38?_testoNota.slice(0,37)+'...':_testoNota,ML+46,cy+4);}
           doc.setFont('helvetica','bold');var ac=isAcc?TEAL:RUST;doc.setTextColor(ac[0],ac[1],ac[2]);
           doc.text((isAcc?'+ ':'-')+fmtP(m.importo),ML+CW,cy+4,{align:'right'});
           doc.setDrawColor(BORDER[0],BORDER[1],BORDER[2]);doc.setLineWidth(.15);doc.line(ML+5,cy+6,ML+CW,cy+6);cy+=6;
@@ -3995,13 +4009,15 @@ function stampaMov(){
   var importo=parseNum(document.getElementById('m-importo').value);
   var data=document.getElementById('m-data').value;
   var nota=document.getElementById('m-note').value;
+  var notaLibera=document.getElementById('m-nota').value.trim();
   var tipo=tipoMov;
   if(!voceId||!importo){showToast('Compila la voce e l\'importo prima di stampare');return;}
   var yd=getYearData(currentYear());
   var voce=null; for(var i=0;i<yd.voci.length;i++){if(yd.voci[i].id===voceId){voce=yd.voci[i];break;}}
   var isPagamento = tipo==='pagamento';
   var accent = isPagamento ? '#B94A1F' : '#0a5442'; // rosso per le uscite, verde per gli accantonamenti
-  var noteRow = (voce && voce.note) ? '<div class="row"><span class="label">Note</span><span class="value">'+voce.note+'</span></div>' : '';
+  var noteRow = (voce && voce.note) ? '<div class="row"><span class="label">Note voce</span><span class="value">'+voce.note+'</span></div>' : '';
+  var notaLiberaRow = notaLibera ? '<div class="row"><span class="label">Nota</span><span class="value">'+notaLibera+'</span></div>' : '';
   var _html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Ricevuta versamento</title>'+
     '<style>body{font-family:Arial,sans-serif;padding:30px;color:#1a1a1a}'+
     'h2{color:'+accent+';border-bottom:2px solid '+accent+';padding-bottom:8px}'+
@@ -4017,6 +4033,7 @@ function stampaMov(){
     '<div class="row"><span class="label">Tipo</span><span class="value">'+(isPagamento?'Pagamento':'Accantonamento')+'</span></div>'+
     '<div class="row"><span class="label">Mese di competenza</span><span class="value">'+data+'</span></div>'+
     '<div class="row"><span class="label">Data bonifico</span><span class="value">'+nota+'</span></div>'+
+    notaLiberaRow+
     noteRow+
     '<div class="importo">'+(isPagamento?'\u2212 ':'')+'\u20ac '+importo.toLocaleString('it-IT',{minimumFractionDigits:2})+'</div>'+
     '<div class="footer">Spese di Casa &mdash; '+new Date().toLocaleDateString('it-IT')+'</div>'+
@@ -4031,6 +4048,7 @@ function stampaCumul(){
   var data=document.getElementById('ci-data').value;
   var importo=parseNum(document.getElementById('ci-importo').value);
   var nota=document.getElementById('ci-note').value;
+  var notaLibera=document.getElementById('ci-nota').value.trim();
   if(!cumulPiano.length){showToast('Nessuna voce nel piano');return;}
   var totDist=0; for(var i=0;i<cumulPiano.length;i++) totDist+=cumulPiano[i].importo;
   var _yd2=getYearData(currentYear());
@@ -4075,7 +4093,8 @@ function stampaCumul(){
     '<div class="meta"><table>'+
       '<tr><td>Intestatario</td><td style="font-weight:600;text-align:right">'+cumulInt+'</td></tr>'+
       '<tr><td>Mese di competenza</td><td style="font-weight:600;text-align:right">'+data+'</td></tr>'+
-      '<tr style="border:none"><td>Data bonifico</td><td style="font-weight:600;text-align:right">'+nota+'</td></tr>'+
+      '<tr'+(notaLibera?'':' style="border:none"')+'><td>Data bonifico</td><td style="font-weight:600;text-align:right">'+nota+'</td></tr>'+
+      (notaLibera?('<tr style="border:none"><td>Nota</td><td style="font-weight:600;text-align:right">'+notaLibera+'</td></tr>'):'')+
     '</table></div>'+
     '<h3 style="font-size:12px;color:#666;text-transform:uppercase;letter-spacing:.05em">Distribuzione</h3>'+
     '<table>'+righe+
@@ -4376,10 +4395,10 @@ function gsSyncAll(){
   function n2s(n){ return (n||0).toString(); } // numero sempre con punto
   (yd.voci||[]).forEach(function(v){vRows.push([v.id,v.descrizione,v.categoria||'',v.intestatario||'',n2s(v.rata),n2s(v.target),v.scadenza||'',v.haScadenza?1:0,v.conto||'',v.note||'',n2s(v.saldoIniziale),JSON.stringify(v.saldoOrigini||[]),
     v.notificaAttiva?1:0, v.notificaData||'', v.notificaAnticipo!=null?v.notificaAnticipo:'', v.notificaMessaggio||'', v.notificaSnoozeUntil||'', v.notificaRicorrenzaTipo||'', v.notificaRicorrenzaGiorni!=null?v.notificaRicorrenzaGiorni:'']);});
-  var mRows=[['id','voceId','tipo','importo','data','note','cumulativo','batchId']];
-  (yd.movimenti||[]).forEach(function(m){mRows.push([m.id,m.voceId,m.tipo,n2s(m.importo),m.data,m.note||'',m.cumulativo?1:0,m.batchId||'']);});
-  var bRows=[['id','data','importo','distribuito','diff','note','daEccesso','voci']];
-  (yd.batchVersamenti||[]).forEach(function(b){bRows.push([b.id,b.data,n2s(b.importo),n2s(b.distribuito),n2s(b.diff),b.note||'',b.daEccesso?1:0,JSON.stringify(b.voci||[])]);});
+  var mRows=[['id','voceId','tipo','importo','data','note','cumulativo','batchId','nota']];
+  (yd.movimenti||[]).forEach(function(m){mRows.push([m.id,m.voceId,m.tipo,n2s(m.importo),m.data,m.note||'',m.cumulativo?1:0,m.batchId||'',m.nota||'']);});
+  var bRows=[['id','data','importo','distribuito','diff','note','daEccesso','voci','nota']];
+  (yd.batchVersamenti||[]).forEach(function(b){bRows.push([b.id,b.data,n2s(b.importo),n2s(b.distribuito),n2s(b.diff),b.note||'',b.daEccesso?1:0,JSON.stringify(b.voci||[]),b.nota||'']);});
   var dRows=[['batchId','data','importo','intestatario','note']];
   (yd.deltaVersamenti||[]).forEach(function(d){dRows.push([d.batchId||'',d.data||'',n2s(d.importo),d.intestatario||'',d.note||'']);});
   var vfRows=[['id','data','saldo','note']];
@@ -4404,7 +4423,7 @@ function gsLoadAll(){
   gsEnsureSheets(GS_SHEETS_ATTESE).then(function(){
   return gapi.client.sheets.spreadsheets.values.batchGet({
     spreadsheetId: GS_SHEET_ID,
-    ranges:['config!A:B','voci!A:S','movimenti!A:H','batch!A:H','delta!A:E','verifiche!A:D']
+    ranges:['config!A:B','voci!A:S','movimenti!A:I','batch!A:I','delta!A:E','verifiche!A:D']
   });
   }).then(function(resp){
     var ranges=resp.result.valueRanges;
@@ -4414,8 +4433,8 @@ function gsLoadAll(){
     if(!y){showToast('Foglio vuoto o non configurato');return;}
     var newVoci=[]; for(var i=1;i<voci.length;i++){var r=voci[i];if(!r[0])continue;newVoci.push({id:r[0],descrizione:r[1]||'',categoria:r[2]||'',intestatario:r[3]||'',rata:parseNum(r[4]),target:parseNum(r[5]),scadenza:r[6]||'',haScadenza:r[7]==='1',conto:r[8]||'',note:r[9]||'',saldoIniziale:parseNum(r[10]),saldoOrigini:JSON.parse(r[11]||'[]'),
       notificaAttiva:r[12]==='1', notificaData:r[13]||'', notificaAnticipo:(r[14]!==undefined&&r[14]!=='')?parseInt(r[14]):null, notificaMessaggio:r[15]||'', notificaSnoozeUntil:r[16]||null, notificaRicorrenzaTipo:r[17]||'none', notificaRicorrenzaGiorni:(r[18]!==undefined&&r[18]!=='')?parseInt(r[18]):30});}
-    var newMov=[]; for(var i=1;i<mov.length;i++){var r=mov[i];if(!r[0])continue;newMov.push({id:r[0],voceId:r[1],tipo:r[2],importo:parseNum(r[3]),data:r[4],note:r[5]||'',cumulativo:r[6]==='1',batchId:r[7]||''});}
-    var newBatch=[]; for(var i=1;i<batch.length;i++){var r=batch[i];if(!r[0])continue;newBatch.push({id:r[0],data:r[1],importo:parseNum(r[2]),distribuito:parseNum(r[3]),diff:parseNum(r[4]),note:r[5]||'',daEccesso:r[6]==='1',voci:JSON.parse(r[7]||'[]')});}
+    var newMov=[]; for(var i=1;i<mov.length;i++){var r=mov[i];if(!r[0])continue;newMov.push({id:r[0],voceId:r[1],tipo:r[2],importo:parseNum(r[3]),data:r[4],note:r[5]||'',cumulativo:r[6]==='1',batchId:r[7]||'',nota:r[8]||''});}
+    var newBatch=[]; for(var i=1;i<batch.length;i++){var r=batch[i];if(!r[0])continue;newBatch.push({id:r[0],data:r[1],importo:parseNum(r[2]),distribuito:parseNum(r[3]),diff:parseNum(r[4]),note:r[5]||'',daEccesso:r[6]==='1',voci:JSON.parse(r[7]||'[]'),nota:r[8]||''});}
     var newDelta=[]; for(var i=1;i<delta.length;i++){var r=delta[i];if(!r[0])continue;newDelta.push({batchId:r[0],data:r[1],importo:parseNum(r[2]),intestatario:r[3]||'',note:r[4]||''});}
     var newVerifiche=[]; for(var i=1;i<verifiche.length;i++){var r=verifiche[i];if(!r[0])continue;newVerifiche.push({id:r[0],data:r[1]||'',saldo:parseNum(r[2]),note:r[3]||''});}
     var db=loadDB(); db.currentYear=y; db.intestatari=intestatari;
